@@ -66,10 +66,12 @@ for k in range(cnt+1):
 
 # 임의의 패치(예: 5번)의 hog를 출력
 f, axes = plt.subplots(1, 5, sharex=True, sharey=True)
+
 for ix in range(5):
-    axes[ix].bar(index, magnitude[ix], tick_label=ori_bin, align='center')
+    axes[ix % 5].bar(index, magnitude[ix], tick_label=ori_bin, align='center')
 
 plt.show()
 
 #plt.bar(index, magnitude[54], tick_label=ori_bin, align='center')
 #plt.show()
+
