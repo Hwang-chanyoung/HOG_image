@@ -1,0 +1,107 @@
+import numpy as np
+import scipy.signal as sig
+from matplotlib import pyplot as plt
+from skimage.io import imread
+from skimage.color import *
+from skimage.transform import resize
+import math
+
+'''
+def normalization(v):
+    norm_v = np.linalg.norm(v)
+    if norm_v == 0:
+        return v
+    else:
+        return v/norm_v
+'''
+
+def normalization(v):
+    norm_v = (v-np.min(v))/(np.max(v)-np.min(v))
+    return norm_v
+
+img_gray = []
+img0 = imread('good_dark1.jpg')
+img1 = imread('bad_dark1.jpg')
+img0 = resize(img0, (240, 240))
+img_gray0 = (rgb2gray(img0) * 255).astype('uint16')
+img1 = resize(img1, (240, 240))
+img_gray1 = (rgb2gray(img1) * 255).astype('uint16')
+
+magnitude = np.zeros((2, 900, 9))  # height of bar
+normBlock = np.zeros((2, 841, 9))
+diff = np.zeros((841, 9))
+
+for imgNum in range(2):
+    if imgNum == 0:
+        imgGray = img_gray0
+    else:
+        imgGray = img_gray1
+
+    cnt = -1
+    for i in range(30):
+        for j in range(30):
+            cnt += 1
+            img_patch = imgGray[i*8:(i+1)*8, j*8:(j+1)*8]
+            Gx = sig.convolve2d(img_patch, np.array([[-1, 0, 1]]), mode='same')
+            Gy = sig.convolve2d(img_patch, np.array([[-1], [0], [1]]), mode='same')
+
+            # 기울기의 길이
+            tgm = np.square(Gx) + np.square(Gy) # root (x)
+            tgm_int = tgm.astype('uint16')
+            # 세타의 크기(라디안)
+            theta = np.arctan(Gy / Gx)
+
+            # 기울기의 크기
+            ori = theta * 180 / np.pi # radian to degree
+            ori[ori < 0] += 180
+            dir = ori.astype('uint16') # directory : angle
+
+            ori_bin = ['0', '20', '40', '60', '80', '100', '120', '140', '160']
+            index = np.arange(len(ori_bin)) # x axis
+            #magnitude = np.zeros(9) # height of bar
+
+            for x in range(8):
+                for y in range(8):
+                    ind = dir[x][y] // 20
+                    if ind == 9:    # if 180
+                        ind = 0
+                    diff1 = abs(dir[x][y] - 20 * ind)
+                    diff2 = 20 - diff1
+                    magnitude[imgNum][cnt][ind] += diff2 * tgm_int[x][y] / 20
+                    if ind < 8:
+                        magnitude[imgNum][cnt][ind + 1] += diff1 * tgm_int[x][y] / 20
+                    else:
+                        magnitude[imgNum][cnt][0] += diff1 * tgm_int[x][y] / 20
+
+
+    cnt = -1
+    for x in range(29):
+        for y in range(29):
+            temp = np.zeros((9))
+            for ix in range(2):
+                for iy in range(2):
+                    #temp.extend(magnitude[imgNum][(x+ix)*30+(y+iy)])
+                    temp += magnitude[imgNum][(x+ix)*30+(y+iy)]
+            cnt += 1
+            normBlock[imgNum][cnt] = normalization(temp)
+
+#diff = math.fabs(normBlock[0]-normBlock[1])
+diff = normBlock[0]-normBlock[1]
+np.savetxt("diff.csv", diff, delimiter=",")
+print('hello')
+
+
+
+'''
+# 임의의 패치(예: 5번)의 hog를 출력
+f, axes = plt.subplots(1, 5, sharex=True, sharey=True)
+
+for ix in range(5):
+    axes[ix % 5].bar(index, magnitude[ix], tick_label=ori_bin, align='center')
+
+plt.show()
+
+#plt.bar(index, magnitude[54], tick_label=ori_bin, align='center')
+#plt.show()
+'''
+
